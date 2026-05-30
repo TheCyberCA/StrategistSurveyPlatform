@@ -10,10 +10,11 @@
 
 /* ── Configuration ─────────────────────────────────────────────── */
 const CONFIG = {
-  GOOGLE_CLIENT_ID : 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
-  APPS_SCRIPT_URL  : 'YOUR_APPS_SCRIPT_WEB_APP_URL',
-  ADMIN_EMAIL      : 'YOUR_ADMIN_GMAIL@gmail.com',
-  APP_BASE_URL     : 'https://YOUR_GITHUB_USERNAME.github.io/cyberca-platform',
+  GOOGLE_CLIENT_ID : '404881795331-vkiuu8oq0e7tm4sti26fkpvoj2ppo7ul.apps.googleusercontent.com',
+  APPS_SCRIPT_URL  : 'https://script.google.com/macros/s/AKfycbwYmxRcdvTqhFmVt68QUmnobl4G4WuxhLH1WcvshpzLv2nC4WbQ_KheVsveRybl-lgcgA/exec
+',
+  ADMIN_EMAIL      : 'nilesh.kapadia@webtrust.co.in',
+  APP_BASE_URL     : 'https://thecyberca.github.io/StrategistSurveyPlatform/',
   APP_NAME         : 'CyberCA Intelligence'
 };
 
