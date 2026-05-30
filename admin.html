@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — CyberCA Intelligence</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<!-- Auth gate -->
+<div id="auth-gate" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">CC</div>
+    <h1 class="auth-title">Admin Access</h1>
+    <p class="auth-sub">Sign in with your admin Google account to manage surveys.</p>
+    <div id="g-btn-admin"></div>
+    <button class="g-btn mt-2" id="manual-signin">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Continue with Google
+    </button>
+    <p class="text-xs text-muted mt-2">Only authorised admin accounts can access this panel.</p>
+  </div>
+</div>
+
+<!-- Admin app -->
+<div id="admin-app" class="hidden">
+
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <div class="nav-logo">CC</div>
+      <span class="nav-title">CyberCA</span>
+    </a>
+    <div class="nav-links">
+      <a href="index.html"     class="nav-link">Surveys</a>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="admin.html"     class="nav-link active">Admin</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <span id="nav-user-name" style="color:rgba(255,255,255,0.8);font-size:0.875rem;"></span>
+      <button id="sign-out-btn" class="nav-link" style="border:none;background:none;cursor:pointer;color:rgba(255,255,255,0.55);">Sign out</button>
+    </div>
+    <button id="mobile-menu-btn">☰</button>
+  </nav>
+
+  <div class="admin-layout">
+
+    <!-- ── Sidebar ───────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <p class="sidebar-label">Surveys</p>
+        <button class="sidebar-item active" id="nav-surveys" onclick="showPanel('surveys')">📋 All Surveys</button>
+        <button class="sidebar-item" id="nav-editor"  onclick="showPanel('editor')">✏ Question Editor</button>
+      </div>
+      <div class="sidebar-section">
+        <p class="sidebar-label">Share</p>
+        <button class="sidebar-item" id="nav-share"  onclick="showPanel('share')">🔗 Share Links</button>
+      </div>
+      <div class="sidebar-section">
+        <p class="sidebar-label">Settings</p>
+        <button class="sidebar-item" id="nav-settings" onclick="showPanel('settings')">⚙ Configuration</button>
+      </div>
+    </aside>
+
+    <!-- ── Main content ──────────────────────────────────────────── -->
+    <main class="main-content">
+
+      <!-- ── Panel: All Surveys ─────────────────────────────────── -->
+      <div id="panel-surveys">
+        <div class="flex-between page-hdr">
+          <div>
+            <h1>All Surveys</h1>
+            <p class="text-muted">Manage your surveys, share links, and view statuses.</p>
+          </div>
+          <button class="btn btn-dark" onclick="createNewSurvey()">+ New Survey</button>
+        </div>
+        <div id="surveys-container"></div>
+      </div>
+
+      <!-- ── Panel: Question Editor ─────────────────────────────── -->
+      <div id="panel-editor" class="hidden">
+        <div class="page-hdr">
+          <div class="flex-between">
+            <div>
+              <h1>Question Editor</h1>
+              <p class="text-muted">Edit questions for the selected survey.</p>
+            </div>
+            <button class="btn btn-ghost" onclick="showPanel('surveys')">← Back to Surveys</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Select Survey to Edit</label>
+          <select class="form-select" id="editor-survey-select" onchange="loadEditorSurvey(this.value)">
+            <option value="">— choose a survey —</option>
+          </select>
+        </div>
+
+        <div id="editor-container">
+          <div class="empty">
+            <div class="empty-icon">✏</div>
+            <h3>Select a survey above</h3>
+            <p>Then edit its questions here.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Panel: Share Links ─────────────────────────────────── -->
+      <div id="panel-share" class="hidden">
+        <div class="page-hdr">
+          <h1>Share Survey Links</h1>
+          <p class="text-muted">Copy or share links to your active surveys.</p>
+        </div>
+        <div id="share-container"></div>
+      </div>
+
+      <!-- ── Panel: Settings ────────────────────────────────────── -->
+      <div id="panel-settings" class="hidden">
+        <div class="page-hdr">
+          <h1>Configuration</h1>
+          <p class="text-muted">Connect your Google Apps Script backend and configure the platform.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <p class="card-title">Apps Script URL</p>
+              <p class="card-subtitle">Paste the URL of your deployed Google Apps Script web app.</p>
+            </div>
+            <span id="conn-status" class="badge badge-warning">Not connected</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Web App URL</label>
+            <input type="url" class="form-input" id="cfg-script-url" placeholder="https://script.google.com/macros/s/…/exec">
+            <p class="form-hint">From Google Apps Script: Deploy → Manage Deployments → copy the web app URL.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Admin Gmail Address</label>
+            <input type="email" class="form-input" id="cfg-admin-email" placeholder="yourname@gmail.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">GitHub Pages Base URL</label>
+            <input type="url" class="form-input" id="cfg-base-url" placeholder="https://yourusername.github.io/cyberca-platform">
+          </div>
+          <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+          <p class="form-hint mt-1">These values are saved in your browser. You must also edit them in app.js for permanent deployment.</p>
+        </div>
+
+        <div class="card mt-3">
+          <div class="card-header">
+            <p class="card-title">Connection Test</p>
+          </div>
+          <p class="text-muted text-sm mb-2">After saving, test your Apps Script connection here.</p>
+          <button class="btn btn-outline" onclick="testConnection()">Test Connection</button>
+          <div id="test-result" class="hidden mt-2"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div><!-- /admin-app -->
+
+<script src="app.js"></script>
+<script src="survey-builder.js"></script>
+<script>
+/* ── Boot ───────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initNav();
+
+  Auth.onSignIn = (user, isAdmin) => {
+    if (!isAdmin) {
+      Toast.error('Access denied. Only the admin account can access this panel.');
+      setTimeout(() => window.location.href = 'index.html', 2000);
+      return;
+    }
+    showAdminApp(user);
+  };
+
+  if (Auth.restoreSession()) {
+    if (!State.isAdmin) {
+      UI.hide('auth-gate');
+      document.body.innerHTML = `<div class="auth-screen"><div class="auth-card">
+        <div class="auth-logo" style="background:#dc2626;">✕</div>
+        <h1 class="auth-title">Access Denied</h1>
+        <p class="auth-sub">This panel is only accessible to the admin account.<br>
+        <a href="index.html" class="btn btn-primary mt-3" style="display:inline-flex;">← Back to Home</a></p>
+      </div></div>`;
+      return;
+    }
+    showAdminApp(State.user);
+  } else {
+    UI.show('auth-gate');
+    Auth.init();
+    Auth.renderButton('g-btn-admin');
+    document.getElementById('manual-signin')?.addEventListener('click', () => {
+      if (typeof google !== 'undefined') google.accounts.id.prompt();
+    });
+    window.addEventListener('load', () => { Auth.init(); Auth.renderButton('g-btn-admin'); });
+  }
+});
+
+function showAdminApp (user) {
+  UI.hide('auth-gate');
+  UI.show('admin-app');
+  UI.updateNavUser(user);
+  showPanel('surveys');
+  loadSavedConfig();
+}
+
+/* ── Panel switching ────────────────────────────────────────────── */
+function showPanel (name) {
+  ['surveys','editor','share','settings'].forEach(p => {
+    UI.hide(`panel-${p}`);
+    document.getElementById(`nav-${p}`)?.classList.remove('active');
+  });
+  UI.show(`panel-${name}`);
+  document.getElementById(`nav-${name}`)?.classList.add('active');
+
+  if (name === 'surveys')  refreshSurveyList();
+  if (name === 'editor')   refreshEditorSelect();
+  if (name === 'share')    refreshSharePanel();
+}
+
+/* ── Survey list ────────────────────────────────────────────────── */
+function refreshSurveyList () {
+  Builder.renderSurveyList('surveys-container');
+}
+
+function createNewSurvey () {
+  const s = Builder.createNew();
+  Builder.saveDefinition(s);
+  refreshSurveyList();
+  Toast.success('New survey created. Select "Question Editor" to add questions.');
+}
+
+function adminEditSurvey (id) {
+  showPanel('editor');
+  refreshEditorSelect();
+  const sel = document.getElementById('editor-survey-select');
+  if (sel) { sel.value = id; loadEditorSurvey(id); }
+}
+
+function adminDuplicate (id) {
+  const copy = Builder.duplicate(id);
+  if (copy) { refreshSurveyList(); Toast.success(`"${copy.title}" created.`); }
+}
+
+function adminToggleStatus (id, current) {
+  const next = current === 'archived' ? 'active' : 'archived';
+  Builder.setStatus(id, next);
+  refreshSurveyList();
+  Toast.success(`Survey ${next === 'archived' ? 'archived' : 'restored'}.`);
+}
+
+function adminDeleteSurvey (id) {
+  if (!confirm('Delete this survey? This cannot be undone.')) return;
+  Builder.delete(id);
+  refreshSurveyList();
+  Toast.info('Survey deleted.');
+}
+
+async function adminCopyLink (id) {
+  const ok = await Links.copy(Links.forSurvey(id));
+  ok ? Toast.success('Link copied to clipboard!') : Toast.error('Could not copy. Please copy manually.');
+}
+
+/* ── Question editor ────────────────────────────────────────────── */
+function refreshEditorSelect () {
+  const sel = document.getElementById('editor-survey-select');
+  if (!sel) return;
+  const surveys = Builder.loadAll();
+  sel.innerHTML = '<option value="">— choose a survey —</option>' +
+    surveys.map(s => `<option value="${s.id}">${UI.esc(s.title)}</option>`).join('');
+}
+
+function loadEditorSurvey (id) {
+  if (!id) return;
+  Builder.renderQuestionEditor(id, 'editor-container');
+}
+
+/* ── Share panel ────────────────────────────────────────────────── */
+function refreshSharePanel () {
+  const surveys = Builder.loadAll().filter(s => s.status === 'active');
+  const el      = document.getElementById('share-container');
+  if (!surveys.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🔗</div><h3>No active surveys</h3><p>Create and activate a survey first.</p></div>`;
+    return;
+  }
+  el.innerHTML = surveys.map(s => {
+    const url = Links.forSurvey(s.id);
+    return `
+      <div class="card mb-2">
+        <p class="card-title mb-1">${UI.esc(s.title)}</p>
+        <div class="link-box mb-2">
+          <span>${url}</span>
+        </div>
+        <div class="flex gap-sm flex-wrap">
+          <button class="btn btn-primary btn-sm" onclick="adminCopyLink('${s.id}')">📋 Copy Link</button>
+          <a href="${Links.whatsappHref(url, s.title)}" target="_blank" class="btn btn-outline btn-sm">📱 Share on WhatsApp</a>
+          <a href="survey.html?id=${s.id}" target="_blank" class="btn btn-ghost btn-sm">▶ Preview</a>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ── Config settings ────────────────────────────────────────────── */
+function loadSavedConfig () {
+  const cfg = Storage.get('cyberca_config') || {};
+  if (cfg.scriptUrl)  document.getElementById('cfg-script-url').value  = cfg.scriptUrl;
+  if (cfg.adminEmail) document.getElementById('cfg-admin-email').value = cfg.adminEmail;
+  if (cfg.baseUrl)    document.getElementById('cfg-base-url').value    = cfg.baseUrl;
+  if (cfg.scriptUrl)  document.getElementById('conn-status').className = 'badge badge-success';
+  document.getElementById('conn-status').textContent = cfg.scriptUrl ? 'Configured' : 'Not connected';
+}
+
+function saveConfig () {
+  const cfg = {
+    scriptUrl  : document.getElementById('cfg-script-url').value.trim(),
+    adminEmail : document.getElementById('cfg-admin-email').value.trim(),
+    baseUrl    : document.getElementById('cfg-base-url').value.trim()
+  };
+  Storage.set('cyberca_config', cfg);
+  if (cfg.scriptUrl)  CONFIG.APPS_SCRIPT_URL = cfg.scriptUrl;
+  if (cfg.adminEmail) CONFIG.ADMIN_EMAIL     = cfg.adminEmail;
+  if (cfg.baseUrl)    CONFIG.APP_BASE_URL    = cfg.baseUrl;
+  document.getElementById('conn-status').className   = 'badge badge-success';
+  document.getElementById('conn-status').textContent = 'Configured';
+  Toast.success('Configuration saved. Remember to also update app.js for permanent deployment.');
+}
+
+async function testConnection () {
+  const el  = document.getElementById('test-result');
+  UI.show('test-result');
+  el.innerHTML = `<span class="spinner dark"></span> Testing connection…`;
+  try {
+    const res = await API.getSurveys();
+    el.innerHTML = `<span class="badge badge-success">✓ Connected — ${res.surveys?.length || 0} survey(s) found in Google Sheets.</span>`;
+  } catch (err) {
+    el.innerHTML = `<span class="badge badge-danger">✕ Connection failed: ${err.message}</span><br>
+      <p class="text-sm text-muted mt-1">Check that your Apps Script is deployed with "Anyone" access and the URL is correct.</p>`;
+  }
+}
+</script>
+</body>
+</html>

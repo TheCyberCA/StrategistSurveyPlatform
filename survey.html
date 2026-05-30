@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Survey — CyberCA Intelligence</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<!-- Auth gate -->
+<div id="auth-gate" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">CC</div>
+    <h1 class="auth-title">Sign in to continue</h1>
+    <p class="auth-sub">This survey requires you to sign in with your Google account.</p>
+    <div id="g-btn-survey"></div>
+    <button class="g-btn mt-2" id="manual-signin">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Continue with Google
+    </button>
+  </div>
+</div>
+
+<!-- Survey App -->
+<div id="survey-app" class="hidden">
+
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <div class="nav-logo">CC</div>
+      <span class="nav-title">CyberCA</span>
+    </a>
+    <div class="nav-links">
+      <a href="index.html"     class="nav-link">Surveys</a>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <span id="nav-user-name" style="color:rgba(255,255,255,0.8);font-size:0.875rem;"></span>
+    </div>
+  </nav>
+
+  <!-- Progress bar (fixed under nav) -->
+  <div style="position:sticky;top:60px;z-index:50;background:var(--color-surface);padding:0;border-bottom:1px solid var(--color-border-soft);">
+    <div class="progress-wrap" style="border-radius:0;">
+      <div class="progress-fill" id="progress-fill" style="width:0%;"></div>
+    </div>
+  </div>
+
+  <!-- Survey content -->
+  <div class="survey-page">
+    <div class="survey-hdr" id="survey-header">
+      <p class="text-muted text-sm" id="survey-subtitle">Loading…</p>
+      <h1 id="survey-title">…</h1>
+    </div>
+
+    <!-- Question container -->
+    <div id="question-container"></div>
+
+    <!-- Navigation -->
+    <div class="survey-nav" id="survey-nav">
+      <button class="btn btn-ghost" id="btn-prev">← Previous</button>
+      <span class="q-step" id="step-label"></span>
+      <button class="btn btn-primary" id="btn-next">Next →</button>
+    </div>
+  </div>
+
+  <!-- Success screen (hidden until submit) -->
+  <div id="success-screen" class="hidden survey-page">
+    <div class="success-screen">
+      <div class="success-icon">🎉</div>
+      <h2>Thank you!</h2>
+      <p class="text-muted" style="margin-bottom:2rem;">Your strategic insights have been recorded. The leadership team will review all submissions confidentially.</p>
+      <a href="index.html" class="btn btn-primary btn-lg">Back to Home</a>
+    </div>
+  </div>
+
+</div><!-- /survey-app -->
+
+<script src="app.js"></script>
+<script src="survey-builder.js"></script>
+<script>
+/* ================================================================
+   Survey page controller
+   ================================================================ */
+
+/* ── Survey state ───────────────────────────────────────────────── */
+const SS = {
+  surveyId  : '',
+  survey    : null,
+  questions : [],
+  current   : 0,           /* current question index */
+  answers   : {},           /* { qId: { entries:[…] } } */
+  userId    : ''
+};
+
+/* ── Boot ───────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  SS.surveyId = UI.getParam('id') || 'strategy2026';
+
+  Auth.onSignIn = (user) => initSurvey(user);
+
+  if (Auth.restoreSession()) {
+    initSurvey(State.user);
+  } else {
+    UI.show('auth-gate');
+    Auth.init();
+    Auth.renderButton('g-btn-survey');
+    document.getElementById('manual-signin')?.addEventListener('click', () => {
+      if (typeof google !== 'undefined') google.accounts.id.prompt();
+    });
+    window.addEventListener('load', () => { Auth.init(); Auth.renderButton('g-btn-survey'); });
+  }
+});
+
+function initSurvey (user) {
+  UI.hide('auth-gate');
+  UI.show('survey-app');
+  UI.updateNavUser(user);
+  SS.userId = user.email;
+
+  /* Load survey definition */
+  const def = Builder.getDefinition(SS.surveyId);
+  if (!def) { Toast.error('Survey not found.'); return; }
+
+  SS.survey    = def;
+  SS.questions = def.questions || [];
+
+  document.getElementById('survey-title').textContent    = def.title;
+  document.getElementById('survey-subtitle').textContent = def.description || '';
+
+  /* Restore draft if exists */
+  const draft = Storage.loadDraft(SS.surveyId, SS.userId);
+  if (draft && draft.answers) {
+    SS.answers = draft.answers;
+    Toast.info('Draft restored — your previous progress has been loaded.');
+  }
+
+  /* Ensure every question has at least one answer entry */
+  SS.questions.forEach(q => {
+    if (!SS.answers[q.id]) SS.answers[q.id] = { entries: [{}] };
+  });
+
+  /* Nav buttons */
+  document.getElementById('btn-prev').addEventListener('click', prevQ);
+  document.getElementById('btn-next').addEventListener('click', nextQ);
+
+  renderQuestion(0);
+}
+
+/* ================================================================
+   QUESTION RENDERING
+   ================================================================ */
+function renderQuestion (idx) {
+  const q  = SS.questions[idx];
+  if (!q) return;
+  SS.current = idx;
+
+  /* Progress */
+  const pct = Math.round(((idx + 1) / SS.questions.length) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  /* Step label */
+  document.getElementById('step-label').textContent =
+    `Question ${idx+1} of ${SS.questions.length}`;
+
+  /* Prev/Next buttons */
+  document.getElementById('btn-prev').classList.toggle('hidden', idx === 0);
+  const isLast = idx === SS.questions.length - 1;
+  const nextBtn = document.getElementById('btn-next');
+  nextBtn.textContent = isLast ? 'Submit Survey ✓' : 'Next →';
+  nextBtn.className   = isLast ? 'btn btn-dark btn-lg' : 'btn btn-primary';
+
+  /* Build question card */
+  const container = document.getElementById('question-container');
+  container.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'q-card';
+  card.innerHTML = `
+    <p class="q-category">${UI.esc(q.category || '')}</p>
+    <h2 class="q-title">${UI.esc(q.title)}</h2>
+    <p class="q-prompt">${UI.esc(q.prompt)}</p>
+    <div id="q-body"></div>
+  `;
+  container.appendChild(card);
+
+  /* Render body based on question type */
+  const body = card.querySelector('#q-body');
+  if (q.type === 'multiresponse') renderMultiResponse(q, body);
+  else                             renderStructured(q, body);
+
+  /* Scroll to top smoothly */
+  window.scrollTo({ top: 60, behavior: 'smooth' });
+}
+
+/* ── Multi-response (Q1: client problems, Q4: 2030 paths) ──────── */
+function renderMultiResponse (q, container) {
+  const ans     = SS.answers[q.id] || { entries: [{}] };
+  const entries = ans.entries.length ? ans.entries : [{}];
+  SS.answers[q.id] = { entries };
+
+  const label = q.multiLabel || 'Issue';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'mr-list';
+  wrap.id = `mr_${q.id}`;
+
+  entries.forEach((entry, i) => {
+    wrap.appendChild(buildMREntry(q, entry, i));
+  });
+
+  container.appendChild(wrap);
+
+  /* Add more button */
+  const addBtn = document.createElement('button');
+  addBtn.className = 'mr-add mt-1';
+  addBtn.innerHTML = `+ Add Another ${label}`;
+  addBtn.addEventListener('click', () => {
+    SS.answers[q.id].entries.push({});
+    const newEntry = buildMREntry(q, {}, SS.answers[q.id].entries.length - 1);
+    document.getElementById(`mr_${q.id}`).appendChild(newEntry);
+    autosave();
+  });
+  container.appendChild(addBtn);
+}
+
+function buildMREntry (q, entry, idx) {
+  const div = document.createElement('div');
+  div.className = 'mr-item';
+  div.id = `mri_${q.id}_${idx}`;
+
+  let inner = `<p class="mr-item-num">${q.multiLabel || 'Issue'} ${idx + 1}</p>`;
+
+  if (q.subfields && q.subfields.length) {
+    /* Q4-style: sub-fields per entry */
+    q.subfields.forEach(sf => {
+      inner += buildSubfieldHTML(sf, entry[sf.id] || '', `${q.id}__${idx}__${sf.id}`);
+    });
+  } else {
+    /* Q1-style: single textarea + severity */
+    const voiceId = `voice_mr_${q.id}_${idx}`;
+    inner += `
+      <div class="form-group voice-wrap">
+        <textarea class="form-textarea mr-text" id="txt_${q.id}_${idx}"
+          placeholder="${UI.esc(q.placeholder||'Enter your response…')}"
+          rows="3" style="padding-right:2.75rem">${UI.esc(entry.text||'')}</textarea>
+        ${q.hasVoice ? `<button class="voice-btn" id="${voiceId}" type="button"></button>` : ''}
+      </div>
+    `;
+    if (q.hasSeverity) {
+      inner += `<div class="form-group">
+        <label class="form-label text-sm">Severity</label>
+        <div class="severity-row" id="sev_${q.id}_${idx}">
+          ${q.severityLevels.map(lv =>
+            `<span class="sev-chip${entry.severity===lv?' sel':''}" data-v="${lv}"
+              onclick="selectSeverity('${q.id}',${idx},'${lv}')">${lv.charAt(0).toUpperCase()+lv.slice(1)}</span>`
+          ).join('')}
+        </div>
+      </div>`;
+    }
+  }
+
+  /* Remove button (not shown for first entry) */
+  if (idx > 0) inner += `<button class="mr-remove" onclick="removeMREntry('${q.id}',${idx})" title="Remove">✕</button>`;
+
+  div.innerHTML = inner;
+
+  /* Wire up text change listeners */
+  setTimeout(() => {
+    const ta = div.querySelector(`#txt_${q.id}_${idx}`);
+    if (ta) {
+      ta.addEventListener('input', () => { SS.answers[q.id].entries[idx].text = ta.value; autosave(); });
+      if (q.hasVoice) {
+        const vb = div.querySelector(`#voice_mr_${q.id}_${idx}`);
+        Voice.attach(ta, vb);
+      }
+    }
+    /* Sub-field listeners for Q4 */
+    if (q.subfields) {
+      q.subfields.forEach(sf => {
+        const inp = div.querySelector(`#sf_${q.id}__${idx}__${sf.id}`);
+        if (inp) inp.addEventListener('input', () => {
+          if (!SS.answers[q.id].entries[idx]) SS.answers[q.id].entries[idx] = {};
+          SS.answers[q.id].entries[idx][sf.id] = inp.value;
+          autosave();
+        });
+      });
+    }
+  }, 0);
+
+  return div;
+}
+
+function removeMREntry (qid, idx) {
+  SS.answers[qid].entries.splice(idx, 1);
+  const list = document.getElementById(`mr_${qid}`);
+  /* Re-render the list cleanly */
+  const q = SS.questions.find(q => q.id === qid);
+  if (q && list) {
+    list.innerHTML = '';
+    SS.answers[qid].entries.forEach((e, i) => list.appendChild(buildMREntry(q, e, i)));
+  }
+  autosave();
+}
+
+function selectSeverity (qid, idx, level) {
+  if (!SS.answers[qid]) SS.answers[qid] = { entries: [{}] };
+  SS.answers[qid].entries[idx].severity = level;
+  document.querySelectorAll(`#sev_${qid}_${idx} .sev-chip`).forEach(chip => {
+    chip.classList.toggle('sel', chip.dataset.v === level);
+  });
+  autosave();
+}
+
+/* ── Structured fields (Q2, Q3, Q5) ────────────────────────────── */
+function renderStructured (q, container) {
+  const entry = SS.answers[q.id]?.entries?.[0] || {};
+  SS.answers[q.id] = { entries: [entry] };
+
+  const wrap = document.createElement('div');
+  q.subfields.forEach(sf => {
+    const saved = entry[sf.id] || '';
+    wrap.innerHTML += buildSubfieldHTML(sf, saved, `${q.id}__0__${sf.id}`);
+  });
+  container.appendChild(wrap);
+
+  /* Voice on first textarea if q.hasVoice */
+  if (q.hasVoice) {
+    setTimeout(() => {
+      const firstTA = wrap.querySelector('textarea');
+      if (firstTA) {
+        const vb = document.createElement('button');
+        vb.className = 'voice-btn';
+        vb.type      = 'button';
+        firstTA.parentElement.classList.add('voice-wrap');
+        firstTA.parentElement.appendChild(vb);
+        Voice.attach(firstTA, vb);
+      }
+    }, 0);
+  }
+
+  /* Wire up change listeners */
+  setTimeout(() => {
+    q.subfields.forEach(sf => {
+      const inp = container.querySelector(`#sf_${q.id}__0__${sf.id}`);
+      if (inp) inp.addEventListener('input', () => {
+        SS.answers[q.id].entries[0][sf.id] = inp.value;
+        autosave();
+      });
+    });
+  }, 0);
+}
+
+function buildSubfieldHTML (sf, val, uniqueKey) {
+  const id  = `sf_${uniqueKey}`;
+  const req = sf.required ? '<span class="required-star">*</span>' : '';
+  let input = '';
+
+  if (sf.type === 'textarea') {
+    input = `<textarea class="form-textarea" id="${id}" placeholder="${UI.esc(sf.placeholder||'')}" rows="3">${UI.esc(val)}</textarea>`;
+  } else if (sf.type === 'currency') {
+    input = `<div class="input-prefix">
+      <span class="input-prefix-label">₹</span>
+      <input type="number" class="form-input" id="${id}" placeholder="${UI.esc(sf.placeholder||'0')}" value="${UI.esc(val)}" min="0" step="1000">
+    </div>`;
+  } else if (sf.type === 'number') {
+    input = `<input type="number" class="form-input" id="${id}" placeholder="${UI.esc(sf.placeholder||'0')}" value="${UI.esc(val)}" min="0">`;
+  } else {
+    input = `<input type="text" class="form-input" id="${id}" placeholder="${UI.esc(sf.placeholder||'')}" value="${UI.esc(val)}">`;
+  }
+
+  return `<div class="form-group"><label class="form-label">${UI.esc(sf.label)}${req}</label>${input}</div>`;
+}
+
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+function prevQ () {
+  if (SS.current > 0) renderQuestion(SS.current - 1);
+}
+
+function nextQ () {
+  const q = SS.questions[SS.current];
+
+  /* Basic validation: check required fields */
+  if (q.isRequired) {
+    const entries = SS.answers[q.id]?.entries || [];
+    const hasContent = entries.some(e => {
+      if (e.text && e.text.trim()) return true;
+      if (q.subfields) return q.subfields.some(sf => sf.required && e[sf.id] && String(e[sf.id]).trim());
+      return Object.values(e).some(v => v && String(v).trim());
+    });
+    if (!hasContent) { Toast.warning('Please fill in at least one answer before continuing.'); return; }
+  }
+
+  autosave();
+
+  if (SS.current < SS.questions.length - 1) {
+    renderQuestion(SS.current + 1);
+  } else {
+    submitSurvey();
+  }
+}
+
+/* ================================================================
+   AUTOSAVE & SUBMIT
+   ================================================================ */
+function autosave () {
+  Storage.saveDraft(SS.surveyId, SS.userId, SS.answers);
+}
+
+async function submitSurvey () {
+  const btn = document.getElementById('btn-next');
+  UI.setLoading(btn, true, 'Submitting…');
+
+  /* Build flat submission payload */
+  const payload = {
+    surveyId  : SS.surveyId,
+    userId    : SS.userId,
+    userName  : State.user.name,
+    timestamp : new Date().toISOString(),
+    responses : []
+  };
+
+  SS.questions.forEach(q => {
+    const ans = SS.answers[q.id];
+    if (!ans) return;
+    ans.entries.forEach((entry, i) => {
+      const row = {
+        questionId    : q.id,
+        questionTitle : q.title,
+        entryIndex    : i
+      };
+      if (q.type === 'multiresponse' && !q.subfields?.length) {
+        row.text     = entry.text || '';
+        row.severity = entry.severity || '';
+      } else if (q.subfields) {
+        q.subfields.forEach(sf => { row[sf.id] = entry[sf.id] || ''; });
+      }
+      payload.responses.push(row);
+    });
+  });
+
+  /* Also save locally as a permanent record */
+  const allResp = Storage.loadResponses(SS.surveyId, SS.userId);
+  allResp.push(payload);
+  Storage.saveResponses(SS.surveyId, SS.userId, allResp);
+
+  try {
+    await API.submitResponse(payload);
+    Storage.clearDraft(SS.surveyId, SS.userId);
+    UI.hide('question-container');
+    UI.hide('survey-nav');
+    UI.hide('survey-header');
+    UI.show('success-screen');
+  } catch (err) {
+    Toast.error('Submission failed. Your answers are saved locally — please try again.');
+    UI.setLoading(btn, false);
+  }
+}
+</script>
+</body>
+</html>

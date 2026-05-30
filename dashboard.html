@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — CyberCA Intelligence</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Auth gate -->
+<div id="auth-gate" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">CC</div>
+    <h1 class="auth-title">Dashboard Access</h1>
+    <p class="auth-sub">Sign in to view the analytics dashboard.</p>
+    <div id="g-btn-dash"></div>
+    <button class="g-btn mt-2" id="manual-signin">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Continue with Google
+    </button>
+  </div>
+</div>
+
+<!-- Dashboard App -->
+<div id="dash-app" class="hidden">
+
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <div class="nav-logo">CC</div>
+      <span class="nav-title">CyberCA</span>
+    </a>
+    <div class="nav-links">
+      <a href="index.html"     class="nav-link">Surveys</a>
+      <a href="dashboard.html" class="nav-link active">Dashboard</a>
+      <a href="admin.html"     class="nav-link hidden" id="admin-nav-link">Admin</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <span id="nav-user-name" style="color:rgba(255,255,255,0.8);font-size:0.875rem;"></span>
+      <button id="sign-out-btn" class="nav-link" style="border:none;background:none;cursor:pointer;color:rgba(255,255,255,0.55);">Sign out</button>
+    </div>
+    <button id="mobile-menu-btn">☰</button>
+  </nav>
+
+  <div class="container page-wrap">
+
+    <!-- Header + survey selector -->
+    <div class="flex-between page-hdr" style="flex-wrap:wrap; gap:1rem;">
+      <div>
+        <h1>Analytics Dashboard</h1>
+        <p class="text-muted" id="stat-survey-name">Loading…</p>
+      </div>
+      <div class="flex gap-sm" style="align-items:center;">
+        <select class="form-select" id="survey-selector" style="width:260px;" onchange="renderDashboard(this.value)">
+          <option value="strategy2026">Team Strategy 2026–2030</option>
+        </select>
+        <button class="btn btn-outline" onclick="renderDashboard(document.getElementById('survey-selector').value)">⟳ Refresh</button>
+      </div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="dash-loading" class="grid-4 mb-3">
+      <div class="skeleton" style="height:90px;"></div>
+      <div class="skeleton" style="height:90px;"></div>
+      <div class="skeleton" style="height:90px;"></div>
+      <div class="skeleton" style="height:90px;"></div>
+    </div>
+
+    <!-- Dashboard content -->
+    <div id="dash-content" class="hidden">
+
+      <!-- ── Overview stats ──────────────────────────────────────── -->
+      <div id="revenue-stats" class="grid-4 mb-3">
+        <!-- Populated by dashboard.js renderRevenueGoals() -->
+        <div class="stat-card"><p class="stat-label">Respondents</p><p class="stat-value" id="stat-respondents">—</p></div>
+        <div class="stat-card"><p class="stat-label">Total Responses</p><p class="stat-value" id="stat-responses">—</p></div>
+        <div class="stat-card"><p class="stat-label">Completion Rate</p><p class="stat-value" id="stat-completion">—</p></div>
+        <div class="stat-card"><p class="stat-label">Survey</p><p class="stat-value" style="font-size:1rem;" id="stat-survey-title">—</p></div>
+      </div>
+
+      <!-- ── Section 1: Client Servicing ────────────────────────── -->
+      <h2 style="font-size:1rem; font-weight:700; color:var(--color-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:1rem;">
+        Part 1 — Client Servicing Problems
+      </h2>
+      <div class="grid-2 mb-3">
+        <div class="chart-card">
+          <p class="chart-title">Problem Severity Distribution</p>
+          <canvas id="sev-chart" height="220"></canvas>
+        </div>
+        <div class="chart-card">
+          <p class="chart-title">Most-Used Keywords in Responses</p>
+          <canvas id="keywords-chart" height="220"></canvas>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <p class="chart-title">All Reported Problems</p>
+        <div id="problems-list"></div>
+      </div>
+
+      <!-- ── Section 2: Product Opportunity ─────────────────────── -->
+      <h2 style="font-size:1rem; font-weight:700; color:var(--color-muted); text-transform:uppercase; letter-spacing:0.5px; margin:1.5rem 0 1rem;">
+        Part 2 — Product Opportunities
+      </h2>
+      <div class="card mb-3">
+        <p class="chart-title">Proposed Products &amp; Services</p>
+        <div id="products-list"></div>
+      </div>
+
+      <!-- ── Section 3: Revenue Goals ───────────────────────────── -->
+      <h2 style="font-size:1rem; font-weight:700; color:var(--color-muted); text-transform:uppercase; letter-spacing:0.5px; margin:1.5rem 0 1rem;">
+        Part 3 — Revenue Goals
+      </h2>
+      <div class="grid-2 mb-3">
+        <div class="chart-card">
+          <p class="chart-title">Monthly Revenue Target by End of 2026 (per team member)</p>
+          <canvas id="rev2026-chart" height="220"></canvas>
+        </div>
+        <div class="chart-card">
+          <p class="chart-title">Annual Revenue Target by End of 2030 (per team member)</p>
+          <canvas id="rev2030-chart" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- ── Section 4: Corpus Fund ──────────────────────────────── -->
+      <h2 style="font-size:1rem; font-weight:700; color:var(--color-muted); text-transform:uppercase; letter-spacing:0.5px; margin:1.5rem 0 1rem;">
+        Part 4 — Corpus Fund
+      </h2>
+      <div class="grid-2 mb-3">
+        <div class="chart-card">
+          <p class="chart-title">Corpus Required vs Passive Income (annualised)</p>
+          <canvas id="corpus-chart" height="220"></canvas>
+        </div>
+        <div class="card">
+          <p class="chart-title">Corpus Details by Team Member</p>
+          <div id="corpus-list"></div>
+        </div>
+      </div>
+
+    </div><!-- /dash-content -->
+  </div><!-- /container -->
+</div><!-- /dash-app -->
+
+<script src="app.js"></script>
+<script src="survey-builder.js"></script>
+<script src="dashboard.js"></script>
+<script>
+/* ── Dashboard page boot ────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initNav();
+
+  Auth.onSignIn = (user, isAdmin) => showDash(user, isAdmin);
+
+  if (Auth.restoreSession()) {
+    showDash(State.user, State.isAdmin);
+  } else {
+    UI.show('auth-gate');
+    Auth.init();
+    Auth.renderButton('g-btn-dash');
+    document.getElementById('manual-signin')?.addEventListener('click', () => {
+      if (typeof google !== 'undefined') google.accounts.id.prompt();
+    });
+    window.addEventListener('load', () => { Auth.init(); Auth.renderButton('g-btn-dash'); });
+  }
+});
+
+function showDash (user, isAdmin) {
+  UI.hide('auth-gate');
+  UI.show('dash-app');
+  UI.updateNavUser(user);
+  if (isAdmin) UI.show('admin-nav-link');
+
+  /* Populate survey selector */
+  const sel      = document.getElementById('survey-selector');
+  const surveys  = Builder.loadAll();
+  if (surveys.length) {
+    sel.innerHTML = surveys.map(s =>
+      `<option value="${s.id}">${UI.esc(s.title)}</option>`).join('');
+  }
+
+  /* Render first survey */
+  const firstId = sel.value || 'strategy2026';
+  renderDashboard(firstId);
+}
+</script>
+</body>
+</html>

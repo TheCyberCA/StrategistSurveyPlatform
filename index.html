@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberCA Intelligence Platform</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230f4c4c'/><text y='.9em' font-size='64' x='14'>CC</text></svg>">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     AUTH SCREEN  —  shown when not signed in
+═══════════════════════════════════════════════════════════════════ -->
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">CC</div>
+    <h1 class="auth-title">CyberCA Intelligence</h1>
+    <p class="auth-sub">Strategic insight platform for your team.<br>Sign in with your Google account to continue.</p>
+
+    <!-- Google renders its button here -->
+    <div id="g-btn-container" style="margin-bottom:1rem;"></div>
+
+    <!-- Fallback styled button -->
+    <button class="g-btn" id="manual-signin">
+      <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Continue with Google
+    </button>
+    <p class="text-xs text-muted mt-2">Access is restricted to authorised team members only.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN APP  —  shown after sign-in
+═══════════════════════════════════════════════════════════════════ -->
+<div id="main-app" class="hidden">
+
+  <nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <div class="nav-logo">CC</div>
+      <span class="nav-title">CyberCA</span>
+    </a>
+    <div class="nav-links">
+      <a href="index.html"     class="nav-link active">Surveys</a>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="admin.html"     class="nav-link hidden" id="admin-nav-link">Admin</a>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <span id="nav-user-name" style="color:rgba(255,255,255,0.8);font-size:0.875rem;"></span>
+      <button id="sign-out-btn" class="nav-link" style="border:none;background:none;cursor:pointer;color:rgba(255,255,255,0.55);">Sign out</button>
+    </div>
+    <button id="mobile-menu-btn">☰</button>
+  </nav>
+
+  <div class="container page-wrap">
+
+    <!-- Header -->
+    <div class="flex-between page-hdr">
+      <div>
+        <h1>Active Surveys</h1>
+        <p class="text-muted">Select a survey to share your strategic insights.</p>
+      </div>
+      <div id="admin-shortcut" class="hidden">
+        <a href="admin.html" class="btn btn-dark">Admin Panel →</a>
+      </div>
+    </div>
+
+    <!-- Loading skeletons -->
+    <div id="surveys-loading" class="grid-2">
+      <div class="skeleton" style="height:160px;"></div>
+      <div class="skeleton" style="height:160px;"></div>
+    </div>
+
+    <!-- Survey cards -->
+    <div id="surveys-list" class="grid-2 hidden"></div>
+
+    <!-- Empty state -->
+    <div id="surveys-empty" class="empty hidden">
+      <div class="empty-icon">📋</div>
+      <h3>No active surveys right now</h3>
+      <p>Check back later, or contact your admin.</p>
+    </div>
+
+  </div>
+</div><!-- /main-app -->
+
+<script src="app.js"></script>
+<script src="survey-builder.js"></script>
+<script>
+/* ── Index page controller ──────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initNav();
+
+  /* Set up sign-in callback */
+  Auth.onSignIn = (user, isAdmin) => showApp(user, isAdmin);
+
+  /* Try restoring previous session first */
+  if (Auth.restoreSession()) {
+    showApp(State.user, State.isAdmin);
+  }
+
+  /* Fallback button */
+  document.getElementById('manual-signin').addEventListener('click', () => {
+    if (typeof google !== 'undefined') google.accounts.id.prompt();
+    else Toast.warning('Google Sign-In is loading. Please wait a moment and try again.');
+  });
+
+  /* Init Google GSI once its script is ready */
+  if (typeof google !== 'undefined') {
+    Auth.init();
+    Auth.renderButton('g-btn-container');
+  } else {
+    window.addEventListener('load', () => {
+      Auth.init();
+      Auth.renderButton('g-btn-container');
+    });
+  }
+});
+
+function showApp (user, isAdmin) {
+  UI.hide('auth-screen');
+  UI.show('main-app');
+  UI.updateNavUser(user);
+  if (isAdmin) {
+    UI.show('admin-nav-link');
+    UI.show('admin-shortcut');
+  }
+  loadSurveys();
+}
+
+async function loadSurveys () {
+  try {
+    const res     = await API.getSurveys();
+    const surveys = (res.surveys || []).filter(s => State.isAdmin || s.status === 'active');
+    renderList(surveys);
+  } catch (err) {
+    renderList(BUILT_IN_SURVEYS_LIST);
+    Toast.warning('Running in demo mode. Connect Apps Script to sync data.');
+  } finally {
+    UI.hide('surveys-loading');
+  }
+}
+
+function renderList (surveys) {
+  if (!surveys.length) { UI.show('surveys-empty'); return; }
+  UI.show('surveys-list');
+  document.getElementById('surveys-list').innerHTML = surveys.map(s => `
+    <div class="survey-card">
+      <div class="flex-between" style="align-items:flex-start; margin-bottom:8px;">
+        <p class="survey-card-title">${UI.esc(s.title)}</p>
+        ${UI.statusBadge(s.status || 'active')}
+      </div>
+      <p class="survey-card-meta">${s.questionCount||0} questions · ${UI.formatDate(s.createdAt||Date.now())}</p>
+      <p class="text-sm text-muted" style="margin-bottom:1rem;">${UI.esc(s.description||'Share your strategic insights with the team.')}</p>
+      <div class="survey-card-actions">
+        <a href="survey.html?id=${s.id}" class="btn btn-primary btn-sm">Take Survey →</a>
+        ${State.isAdmin ? `
+          <button class="btn btn-outline btn-sm" onclick="copyLink('${s.id}')">📋 Copy Link</button>
+          <a href="${Links.whatsappHref(Links.forSurvey(s.id), s.title)}" target="_blank" class="btn btn-sm btn-outline">📱 WhatsApp</a>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function copyLink (id) {
+  const ok = await Links.copy(Links.forSurvey(id));
+  ok ? Toast.success('Survey link copied!') : Toast.error('Copy failed. Please copy manually.');
+}
+</script>
+</body>
+</html>
