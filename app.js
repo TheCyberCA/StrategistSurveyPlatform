@@ -14,7 +14,7 @@ const CONFIG = {
   APPS_SCRIPT_URL  : 'https://script.google.com/macros/s/AKfycbwYmxRcdvTqhFmVt68QUmnobl4G4WuxhLH1WcvshpzLv2nC4WbQ_KheVsveRybl-lgcgA/exec
 ',
   ADMIN_EMAIL      : 'nilesh.kapadia@webtrust.co.in',
-  APP_BASE_URL     : 'https://thecyberca.github.io/StrategistSurveyPlatform/',
+  APP_BASE_URL     : 'https://thecyberca.github.io/StrategistSurveyPlatform',
   APP_NAME         : 'CyberCA Intelligence'
 };
 
